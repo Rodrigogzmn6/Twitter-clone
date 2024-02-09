@@ -1,0 +1,11 @@
+Background colors:
+White: #eff3f4
+Ligth Blue: #1d9bf0
+Searchbar #2f3336
+Right Cards #202327
+Main #000000
+
+Text
+White #eff3f4
+Light Blue #1d9bf0
+Gray text #71767b
