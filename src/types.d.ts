@@ -9,4 +9,6 @@ export interface User {
   id: string
   email: string
   tweets: string[]
+  friends: User[]
+  profile: string
 }
