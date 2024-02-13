@@ -2,8 +2,8 @@ import { type FirebaseApp } from 'firebase/app'
 import { GoogleAuthProvider, createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
 import { doc, getDoc, getFirestore, setDoc, updateDoc } from 'firebase/firestore'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { type User as TwitterUser } from '../types'
+import { devtools, persist } from 'zustand/middleware'
+import { type Tweet, type User as TwitterUser } from '../types'
 
 interface UserState {
   user?: TwitterUser
@@ -13,13 +13,14 @@ interface UserState {
   createUserWithGoogle: (app: FirebaseApp) => Promise<void>
   // TODO: createUserWithApple
   loginWithEmail: (app: FirebaseApp, email: string, password: string) => Promise<void>
+  logout: () => void
   // TODO: logOut
-  feed?: string[]
-  updateFeed: () => Promise<void>
+  feed?: Tweet[]
+  updateFeed: (app: FirebaseApp) => Promise<void>
   postTweet: (app: FirebaseApp, tweet: string) => Promise<void>
 }
 
-export const useUsersStore = create<UserState>()(persist((set, get) => {
+export const useUsersStore = create<UserState>()(devtools(persist((set, get) => {
   return {
     createUserWithEmail: async (app: FirebaseApp, email: string, password: string) => {
       const auth = getAuth(app)
@@ -47,28 +48,26 @@ export const useUsersStore = create<UserState>()(persist((set, get) => {
                             ...newUser,
                             id: userCredential.user.uid
                           }
-                        })
+                        }, false, 'CREATE_USER_EMAIL')
                       })
-                      .catch((error) => {
-                        set({
-                          error: `Error ${error.code} - ${error.message}`
-                        })
+                      .catch(error => {
+                        set({ error: `Error ${error.code} - ${error.message}` })
                       })
                   }
                 })
-                .catch((error) => {
+                .catch(error => {
                   set({
                     error: `Error ${error.code} - ${error.message}`
                   })
                 })
             })
-            .catch((error) => {
+            .catch(error => {
               set({
                 error: `Error ${error.code} - ${error.message}`
               })
             })
         })
-        .catch((error) => {
+        .catch(error => {
           set({
             error: `Error ${error.code} - ${error.message}`
           })
@@ -102,28 +101,28 @@ export const useUsersStore = create<UserState>()(persist((set, get) => {
                             ...newUser,
                             id: result.user.uid
                           }
-                        })
+                        }, false, 'CREATE_USER_GOOGLE')
                       })
-                      .catch((error) => {
+                      .catch(error => {
                         set({
                           error: `Error ${error.code} - ${error.message}`
                         })
                       })
                   }
                 })
-                .catch((error) => {
+                .catch(error => {
                   set({
                     error: `Error ${error.code} - ${error.message}`
                   })
                 })
             })
-            .catch((error) => {
+            .catch(error => {
               set({
                 error: `Error ${error.code} - ${error.message}`
               })
             })
         })
-        .catch((error) => {
+        .catch(error => {
           set({
             error: `Error ${error.code} - ${error.message}`
           })
@@ -151,21 +150,28 @@ export const useUsersStore = create<UserState>()(persist((set, get) => {
                       ...loggedUser,
                       id: userCredential.user.uid
                     }
-                  })
+                  }, false, 'LOGIN_USER')
+                  console.log(get().user)
                 }
               })
-              .catch((error) => {
+              .catch(error => {
                 set({
                   error: `Error ${error.code} - ${error.message}`
                 })
               })
           }
         })
-        .catch((error) => {
+        .catch(error => {
           set({
             error: `Error ${error.code} - ${error.message}`
           })
         })
+    },
+
+    logout: () => {
+      set({
+        user: undefined
+      })
     },
 
     restoreError: () => {
@@ -174,43 +180,66 @@ export const useUsersStore = create<UserState>()(persist((set, get) => {
       })
     },
 
-    updateFeed: async () => {
-      const loggedUser = get().user
-      if (loggedUser != null) {
-        set({ feed: loggedUser.tweets })
-      //   loggedUser.friends.forEach(friend => {
-      //     set({
-      //       feed: [...friend.tweets]
-      //     })
-      //   })
-      }
-    },
-
     postTweet: async (app: FirebaseApp, tweet: string) => {
       const db = getFirestore(app)
       const loggedUser = get().user
 
       if (loggedUser != null) {
-        const tweets = [...loggedUser.tweets, tweet]
+        // * Update feed in local storage
+        const date = new Date()
+        const id = crypto.randomUUID()
+        const tweets: Tweet[] = [...loggedUser.tweets, { id, userName: loggedUser.email, userProfile: loggedUser.profile, tweet, date }]
+        set({
+          user: {
+            ...loggedUser,
+            tweets
+          }
+        })
+
+        // * Update database
         updateDoc(doc(db, 'users', loggedUser.id), {
           tweets
         })
-          .then(() => {
+          .then()
+          // * If it can't be updated, delete the last tweet
+          .catch(error => {
+            const newTweets = tweets.filter(tweet => tweet.id !== id)
             set({
               user: {
                 ...loggedUser,
-                tweets
-              }
+                tweets: newTweets
+              },
+              error: `Error ${error.code} - ${error.message}`
             })
-          }
+            console.log(tweets)
+          })
+          .finally(() => {
+            get().updateFeed(app)
+          })
+      }
+    },
 
-          )
-          .catch((error) => {
-            console.log(error)
+    updateFeed: async (app: FirebaseApp) => {
+      const loggedUser = get().user
+      const db = getFirestore(app)
+
+      if (loggedUser != null) {
+        getDoc(doc(db, 'users', loggedUser.id))
+          .then(data => {
+            if (data.exists()) {
+              set({
+                feed: loggedUser.tweets
+              })
+            }
+          })
+          .catch(error => {
+            set({
+              error: `Error ${error.code} - ${error.message}`
+            })
           })
       }
     }
   }
-}, { name: 'user' }))
+}, { name: 'user' })))
 
 // _document.data.value.mapValue.fields

@@ -8,7 +8,15 @@ export interface Trend {
 export interface User {
   id: string
   email: string
-  tweets: string[]
+  tweets: Tweet[]
   friends: User[]
   profile: string
+}
+
+export interface Tweet {
+  id: string
+  userName: string
+  userProfile: string
+  tweet: string
+  date: Date
 }
