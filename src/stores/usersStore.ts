@@ -3,6 +3,7 @@ import { GoogleAuthProvider, createUserWithEmailAndPassword, getAuth, signInWith
 import { doc, getDoc, getFirestore, setDoc, updateDoc } from 'firebase/firestore'
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
+import { AUTH_ERROR_CREATE_USER_EMAIL, AUTH_ERROR_CREATE_USER_GOOGLE, AUTH_ERROR_LOGIN_USER, CREATE_USER_DB, FIRESTORE_DB_NAME, FIRESTORE_ERROR_CREATE_USER, FIRESTORE_ERROR_GET_USER, FIRESTORE_ERROR_LOGIN_USER, FIRESTORE_ERROR_POST, IMG_API_JSON_ERROR_CREATE_USER, IMG_API_RES_ERROR_CREATE_USER, LOCAL_STORAGE_ENTRY, LOGIN_USER, LOGOUT_USER, RANDOM_USER_API, RESTORE_ERROR, UPDATE_FEED } from '../constants/constants'
 import { type Tweet, type User as TwitterUser } from '../types'
 
 interface UserState {
@@ -28,7 +29,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
 
       createUserWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
-          fetch('https://randomuser.me/api/')
+          fetch(RANDOM_USER_API)
             .then((res) => {
               res.json()
                 .then((data) => {
@@ -39,32 +40,52 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                       friends: [],
                       profile: data.results[0].picture.medium
                     }
-                    setDoc(doc(db, 'users', userCredential.user.uid), {
+                    setDoc(doc(db, FIRESTORE_DB_NAME, userCredential.user.uid), {
                       ...newUser
                     })
                       .then(() => {
-                        set({
-                          user: {
-                            ...newUser,
-                            id: userCredential.user.uid
-                          }
-                        }, false, 'CREATE_USER_EMAIL')
+                        set(
+                          {
+                            user: {
+                              ...newUser,
+                              id: userCredential.user.uid
+                            }
+                          },
+                          false,
+                          CREATE_USER_DB
+                        )
                       })
                       .catch(error => {
-                        set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_CREATING_USER_FIRESTORE_EMAIL')
+                        set(
+                          { error: `Error ${error.code} - ${error.message}` },
+                          false,
+                          FIRESTORE_ERROR_CREATE_USER
+                        )
                       })
                   }
                 })
                 .catch(error => {
-                  set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_FETCHING_IMG_CREATE_USER_EMAIL')
+                  set(
+                    { error: `Error ${error.code} - ${error.message}` },
+                    false,
+                    IMG_API_JSON_ERROR_CREATE_USER
+                  )
                 })
             })
             .catch(error => {
-              set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_FETCHING_IMG_CREATE_USER_EMAIL_2')
+              set(
+                { error: `Error ${error.code} - ${error.message}` },
+                false,
+                IMG_API_RES_ERROR_CREATE_USER
+              )
             })
         })
         .catch(error => {
-          set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_CREATING_USER_EMAIL')
+          set(
+            { error: `Error ${error.code} - ${error.message}` },
+            false,
+            AUTH_ERROR_CREATE_USER_EMAIL
+          )
         })
     },
 
@@ -75,7 +96,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
 
       signInWithPopup(auth, provider)
         .then((result) => {
-          fetch('https://randomuser.me/api/')
+          fetch(RANDOM_USER_API)
             .then((res) => {
               res.json()
                 .then((data) => {
@@ -86,40 +107,52 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                       friends: [],
                       profile: data.results[0].picture.medium
                     }
-                    setDoc(doc(db, 'users', result.user.uid), {
+                    setDoc(doc(db, FIRESTORE_DB_NAME, result.user.uid), {
                       ...newUser
                     })
                       .then(() => {
-                        set({
-                          user: {
-                            ...newUser,
-                            id: result.user.uid
-                          }
-                        }, false, 'CREATE_USER_GOOGLE')
+                        set(
+                          {
+                            user: {
+                              ...newUser,
+                              id: result.user.uid
+                            }
+                          },
+                          false,
+                          CREATE_USER_DB
+                        )
                       })
                       .catch(error => {
-                        set({
-                          error: `Error ${error.code} - ${error.message}`
-                        })
+                        set(
+                          { error: `Error ${error.code} - ${error.message}` },
+                          false,
+                          FIRESTORE_ERROR_CREATE_USER
+                        )
                       })
                   }
                 })
                 .catch(error => {
-                  set({
-                    error: `Error ${error.code} - ${error.message}`
-                  })
+                  set(
+                    { error: `Error ${error.code} - ${error.message}` },
+                    false,
+                    IMG_API_JSON_ERROR_CREATE_USER
+                  )
                 })
             })
             .catch(error => {
-              set({
-                error: `Error ${error.code} - ${error.message}`
-              })
+              set(
+                { error: `Error ${error.code} - ${error.message}` },
+                false,
+                IMG_API_RES_ERROR_CREATE_USER
+              )
             })
         })
         .catch(error => {
-          set({
-            error: `Error ${error.code} - ${error.message}`
-          })
+          set(
+            { error: `Error ${error.code} - ${error.message}` },
+            false,
+            AUTH_ERROR_CREATE_USER_GOOGLE
+          )
         })
     },
 
@@ -130,7 +163,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
       signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
           if (userCredential.user.email != null) {
-            getDoc(doc(db, 'users', userCredential.user.uid))
+            getDoc(doc(db, FIRESTORE_DB_NAME, userCredential.user.uid))
               .then((data) => {
                 if (data.exists()) {
                   const loggedUser = {
@@ -139,41 +172,53 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                     friends: data.data().friends,
                     profile: data.data().profile
                   }
-                  set({
-                    user: {
-                      ...loggedUser,
-                      id: userCredential.user.uid
-                    }
-                  }, false, 'LOGIN_USER')
+                  set(
+                    {
+                      user: {
+                        ...loggedUser,
+                        id: userCredential.user.uid
+                      }
+                    },
+                    false,
+                    LOGIN_USER)
                   get().updateFeed(app)
                 }
               })
               .catch(error => {
-                set({
-                  error: `Error ${error.code} - ${error.message}`
-                })
+                set(
+                  { error: `Error ${error.code} - ${error.message}` },
+                  false,
+                  FIRESTORE_ERROR_LOGIN_USER
+                )
               })
           }
         })
         .catch(error => {
-          set({
-            error: `Error ${error.code} - ${error.message}`
-          })
+          set({ error: `Error ${error.code} - ${error.message}` },
+            false,
+            AUTH_ERROR_LOGIN_USER
+          )
         })
     },
 
     logout: () => {
-      set({
-        user: undefined,
-        error: undefined,
-        feed: undefined
-      })
+      set(
+        {
+          user: undefined,
+          error: undefined,
+          feed: undefined
+        },
+        false,
+        LOGOUT_USER
+      )
     },
 
     restoreError: () => {
-      set({
-        error: undefined
-      })
+      set(
+        { error: undefined },
+        false,
+        RESTORE_ERROR
+      )
     },
 
     postTweet: async (app: FirebaseApp, tweet: string) => {
@@ -185,7 +230,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
         const id = crypto.randomUUID()
 
         // * Get the database list of tweets and add the new tweet
-        getDoc(doc(db, 'users', loggedUser.id))
+        getDoc(doc(db, FIRESTORE_DB_NAME, loggedUser.id))
           .then((data) => {
             if (data.exists()) {
               const newTweet = {
@@ -198,23 +243,27 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
               const tweets = [...data.data().tweets, newTweet]
 
               // * Update database with the new list of tweets
-              updateDoc(doc(db, 'users', loggedUser.id), {
+              updateDoc(doc(db, FIRESTORE_DB_NAME, loggedUser.id), {
                 tweets
               })
                 .then(() => {
                   get().updateFeed(app)
                 })
                 .catch(error => {
-                  set({
-                    error: `Error ${error.code} - ${error.message}`
-                  })
+                  set(
+                    { error: `Error ${error.code} - ${error.message}` },
+                    false,
+                    FIRESTORE_ERROR_POST
+                  )
                 })
             }
           })
           .catch(error => {
-            set({
-              error: `Error ${error.code} - ${error.message}`
-            })
+            set(
+              { error: `Error ${error.code} - ${error.message}` },
+              false,
+              FIRESTORE_ERROR_GET_USER
+            )
           })
       }
     },
@@ -225,8 +274,8 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
       let feed: Tweet[] = []
 
       if (loggedUser != null) {
-        // * Get user's tweets
-        getDoc(doc(db, 'users', loggedUser.id))
+        // * Get users tweets
+        getDoc(doc(db, FIRESTORE_DB_NAME, loggedUser.id))
           .then(data => {
             if (data.exists()) {
               // * Retrieve users tweets
@@ -235,7 +284,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
               if (loggedUser.friends.length > 0) {
               // * Retrieve user friends tweets
                 loggedUser.friends.forEach(friendId => {
-                  getDoc(doc(db, 'users', friendId))
+                  getDoc(doc(db, FIRESTORE_DB_NAME, friendId))
                     .then(data => {
                       if (data.exists()) {
                         data.data().tweets.forEach((tweet: Tweet) => {
@@ -245,9 +294,11 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                       get().orderFeed(feed)
                     })
                     .catch(error => {
-                      set({
-                        error: `Error ${error.code} - ${error.message}`
-                      })
+                      set(
+                        { error: `Error ${error.code} - ${error.message}` },
+                        false,
+                        FIRESTORE_ERROR_GET_USER
+                      )
                     })
                 })
               } else {
@@ -256,9 +307,11 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
             }
           })
           .catch(error => {
-            set({
-              error: `Error ${error.code} - ${error.message}`
-            })
+            set(
+              { error: `Error ${error.code} - ${error.message}` },
+              false,
+              FIRESTORE_ERROR_GET_USER
+            )
           })
       }
     },
@@ -268,10 +321,12 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
         feed.sort((a, b) => (b.date.seconds * 1000 + b.date.nanoseconds / 1000000) - (a.date.seconds * 1000 + a.date.nanoseconds / 1000000))
       }
 
-      set({
-        feed
-      })
+      set(
+        { feed },
+        false,
+        UPDATE_FEED
+      )
     }
 
   }
-}, { name: 'user' })))
+}, { name: LOCAL_STORAGE_ENTRY })))

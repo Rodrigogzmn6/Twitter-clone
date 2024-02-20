@@ -1,16 +1,8 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app'
+import { initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app'
 import { create } from 'zustand'
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyDHHCbfrLreIMmEneV_S021krIwoPwc3Ws',
-  authDomain: 'twitter-clone-2cedb.firebaseapp.com',
-  projectId: 'twitter-clone-2cedb',
-  storageBucket: 'twitter-clone-2cedb.appspot.com',
-  messagingSenderId: '958712133819',
-  appId: '1:958712133819:web:37c75e54cd28023825519e',
-  measurementId: 'G-NB94JNDQGY'
-  // databaseURL: 'https://twitter-clone-2cedb-default-rtdb.firebaseio.com/' --> For real time database
-}
+// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+const firebaseConfig: FirebaseOptions = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG)
 
 interface FirebaseState {
   app: FirebaseApp
