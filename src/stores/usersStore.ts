@@ -8,16 +8,16 @@ import { type Tweet, type User as TwitterUser } from '../types'
 interface UserState {
   user?: TwitterUser
   error?: string
+  feed?: Tweet[]
   restoreError: () => void
   createUserWithEmail: (app: FirebaseApp, email: string, password: string) => Promise<void>
   createUserWithGoogle: (app: FirebaseApp) => Promise<void>
   // TODO: createUserWithApple
   loginWithEmail: (app: FirebaseApp, email: string, password: string) => Promise<void>
   logout: () => void
-  // TODO: logOut
-  feed?: Tweet[]
-  updateFeed: (app: FirebaseApp) => Promise<void>
   postTweet: (app: FirebaseApp, tweet: string) => Promise<void>
+  updateFeed: (app: FirebaseApp) => Promise<void>
+  orderFeed: (feed: Tweet[]) => void
 }
 
 export const useUsersStore = create<UserState>()(devtools(persist((set, get) => {
@@ -51,26 +51,20 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                         }, false, 'CREATE_USER_EMAIL')
                       })
                       .catch(error => {
-                        set({ error: `Error ${error.code} - ${error.message}` })
+                        set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_CREATING_USER_FIRESTORE_EMAIL')
                       })
                   }
                 })
                 .catch(error => {
-                  set({
-                    error: `Error ${error.code} - ${error.message}`
-                  })
+                  set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_FETCHING_IMG_CREATE_USER_EMAIL')
                 })
             })
             .catch(error => {
-              set({
-                error: `Error ${error.code} - ${error.message}`
-              })
+              set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_FETCHING_IMG_CREATE_USER_EMAIL_2')
             })
         })
         .catch(error => {
-          set({
-            error: `Error ${error.code} - ${error.message}`
-          })
+          set({ error: `Error ${error.code} - ${error.message}` }, false, 'ERROR_CREATING_USER_EMAIL')
         })
     },
 
@@ -151,7 +145,7 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
                       id: userCredential.user.uid
                     }
                   }, false, 'LOGIN_USER')
-                  console.log(get().user)
+                  get().updateFeed(app)
                 }
               })
               .catch(error => {
@@ -170,7 +164,9 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
 
     logout: () => {
       set({
-        user: undefined
+        user: undefined,
+        error: undefined,
+        feed: undefined
       })
     },
 
@@ -185,51 +181,34 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
       const loggedUser = get().user
 
       if (loggedUser != null) {
-        // * Update feed in local storage
         const date = new Date()
         const id = crypto.randomUUID()
-        const tweets: Tweet[] = [...loggedUser.tweets, { id, userName: loggedUser.email, userProfile: loggedUser.profile, tweet, date }]
-        set({
-          user: {
-            ...loggedUser,
-            tweets
-          }
-        })
 
-        // * Update database
-        updateDoc(doc(db, 'users', loggedUser.id), {
-          tweets
-        })
-          .then()
-          // * If it can't be updated, delete the last tweet
-          .catch(error => {
-            const newTweets = tweets.filter(tweet => tweet.id !== id)
-            set({
-              user: {
-                ...loggedUser,
-                tweets: newTweets
-              },
-              error: `Error ${error.code} - ${error.message}`
-            })
-            console.log(tweets)
-          })
-          .finally(() => {
-            get().updateFeed(app)
-          })
-      }
-    },
-
-    updateFeed: async (app: FirebaseApp) => {
-      const loggedUser = get().user
-      const db = getFirestore(app)
-
-      if (loggedUser != null) {
+        // * Get the database list of tweets and add the new tweet
         getDoc(doc(db, 'users', loggedUser.id))
-          .then(data => {
+          .then((data) => {
             if (data.exists()) {
-              set({
-                feed: loggedUser.tweets
+              const newTweet = {
+                id,
+                userName: data.data().email,
+                userProfile: data.data().profile,
+                tweet,
+                date
+              }
+              const tweets = [...data.data().tweets, newTweet]
+
+              // * Update database with the new list of tweets
+              updateDoc(doc(db, 'users', loggedUser.id), {
+                tweets
               })
+                .then(() => {
+                  get().updateFeed(app)
+                })
+                .catch(error => {
+                  set({
+                    error: `Error ${error.code} - ${error.message}`
+                  })
+                })
             }
           })
           .catch(error => {
@@ -238,8 +217,61 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
             })
           })
       }
+    },
+
+    updateFeed: async (app: FirebaseApp) => {
+      const loggedUser = get().user
+      const db = getFirestore(app)
+      let feed: Tweet[] = []
+
+      if (loggedUser != null) {
+        // * Get user's tweets
+        getDoc(doc(db, 'users', loggedUser.id))
+          .then(data => {
+            if (data.exists()) {
+              // * Retrieve users tweets
+              feed = data.data().tweets
+
+              if (loggedUser.friends.length > 0) {
+              // * Retrieve user friends tweets
+                loggedUser.friends.forEach(friendId => {
+                  getDoc(doc(db, 'users', friendId))
+                    .then(data => {
+                      if (data.exists()) {
+                        data.data().tweets.forEach((tweet: Tweet) => {
+                          feed = [...feed, tweet]
+                        })
+                      }
+                      get().orderFeed(feed)
+                    })
+                    .catch(error => {
+                      set({
+                        error: `Error ${error.code} - ${error.message}`
+                      })
+                    })
+                })
+              } else {
+                get().orderFeed(feed)
+              }
+            }
+          })
+          .catch(error => {
+            set({
+              error: `Error ${error.code} - ${error.message}`
+            })
+          })
+      }
+    },
+
+    orderFeed: (feed: Tweet[]) => {
+      if (feed != null) {
+        feed.sort((a, b) => (b.date.seconds * 1000 + b.date.nanoseconds / 1000000) - (a.date.seconds * 1000 + a.date.nanoseconds / 1000000))
+      }
+
+      set({
+        feed
+      })
     }
+
   }
 }, { name: 'user' })))
-
-// _document.data.value.mapValue.fields

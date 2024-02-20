@@ -9,6 +9,7 @@ const firebaseConfig = {
   messagingSenderId: '958712133819',
   appId: '1:958712133819:web:37c75e54cd28023825519e',
   measurementId: 'G-NB94JNDQGY'
+  // databaseURL: 'https://twitter-clone-2cedb-default-rtdb.firebaseio.com/' --> For real time database
 }
 
 interface FirebaseState {
