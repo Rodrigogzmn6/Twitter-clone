@@ -1,6 +1,6 @@
 import { type FirebaseApp } from 'firebase/app'
 import { GoogleAuthProvider, createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth'
-import { doc, getDoc, getFirestore, setDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore'
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { AUTH_ERROR_CREATE_USER_EMAIL, AUTH_ERROR_CREATE_USER_GOOGLE, AUTH_ERROR_LOGIN_USER, CREATE_USER_DB, FIRESTORE_DB_NAME, FIRESTORE_ERROR_CREATE_USER, FIRESTORE_ERROR_GET_USER, FIRESTORE_ERROR_LOGIN_USER, FIRESTORE_ERROR_POST, IMG_API_JSON_ERROR_CREATE_USER, IMG_API_RES_ERROR_CREATE_USER, LOCAL_STORAGE_ENTRY, LOGIN_USER, LOGOUT_USER, RANDOM_USER_API, RESTORE_ERROR, UPDATE_FEED } from '../constants/constants'
@@ -19,6 +19,7 @@ interface UserState {
   postTweet: (app: FirebaseApp, tweet: string) => Promise<void>
   updateFeed: (app: FirebaseApp) => Promise<void>
   orderFeed: (feed: Tweet[]) => void
+  listenFirebase: (app: FirebaseApp) => void
 }
 
 export const useUsersStore = create<UserState>()(devtools(persist((set, get) => {
@@ -265,6 +266,17 @@ export const useUsersStore = create<UserState>()(devtools(persist((set, get) => 
               FIRESTORE_ERROR_GET_USER
             )
           })
+      }
+    },
+
+    listenFirebase: (app: FirebaseApp) => {
+      const loggedUser = get().user
+      const db = getFirestore(app)
+
+      if (loggedUser != null) {
+        onSnapshot(doc(db, FIRESTORE_DB_NAME, loggedUser.id), (doc) => {
+          get().updateFeed(app)
+        })
       }
     },
 

@@ -7,9 +7,11 @@ export const Tweets = () => {
   const feed = useUsersStore(state => state.feed)
   const updateFeed = useUsersStore(state => state.updateFeed)
   const app = useFirebaseStore(state => state.app)
+  const listenFirebase = useUsersStore(state => state.listenFirebase)
 
   useEffect(() => {
     updateFeed(app)
+    listenFirebase(app)
   }, [])
 
   return (
@@ -18,3 +20,7 @@ export const Tweets = () => {
     ))
   )
 }
+
+// return () => {
+//   listenFirebase(app)
+// }

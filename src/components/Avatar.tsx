@@ -5,7 +5,7 @@ export const Avatar = () => {
   const logout = useUsersStore(state => state.logout)
 
   return (
-    <div className='cursor-pointer rounded-full p-2 hover:bg-secondary-text' onClick={logout}>
+    <div className='cursor-pointer rounded-full p-4 hover:bg-secondary-text' onClick={logout}>
       <img className="rounded-full" src={user?.profile}/>
     </div>
   )

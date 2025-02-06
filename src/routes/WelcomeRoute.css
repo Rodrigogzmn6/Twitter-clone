@@ -1,0 +1,12 @@
+@media (640px <= width < 1024px) {
+  .wr {
+    margin-left: 10%;
+    margin-right: 10%;
+  }
+}
+
+@media (1024px <= width) {
+  .wr svg.x-icon {
+    max-width: 350px;
+  }
+}

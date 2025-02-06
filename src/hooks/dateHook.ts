@@ -12,11 +12,11 @@ export const useDateHook = () => {
     const minDiff = Math.floor(milisecondsDiff / (1000 * 60))
 
     if (dayDiff > 0) {
-      return `${dayDiff} day/s ago.`
+      return `${dayDiff}d`
     } else if (hourDiff > 0) {
-      return `${hourDiff} hour/s ago.`
+      return `${hourDiff}h`
     } else {
-      return `${minDiff} min ago.`
+      return `${minDiff}min`
     }
   }
 
